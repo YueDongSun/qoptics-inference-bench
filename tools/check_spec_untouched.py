@@ -17,15 +17,35 @@ from hook_gate import SCIENCE_DECISION_MESSAGE, is_owner_only_path
 
 
 def staged_paths() -> list[str]:
-    """Return paths staged for the next commit."""
+    """Return staged paths, including both sides of a rename and deletions."""
 
     result = subprocess.run(
-        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMRD"],
+        ["git", "diff", "--cached", "--name-status", "-z", "-M"],
         check=True,
         capture_output=True,
-        text=True,
     )
-    return [line for line in result.stdout.splitlines() if line]
+    return paths_from_name_status_z(result.stdout)
+
+
+def paths_from_name_status_z(payload: bytes) -> list[str]:
+    """Parse ``git diff --name-status -z`` output into every path it names."""
+
+    records = payload.split(b"\0")
+    if records and records[-1] == b"":
+        records.pop()
+    paths: list[str] = []
+    index = 0
+    while index < len(records):
+        status = records[index].decode("utf-8")
+        index += 1
+        path_count = 2 if status[:1] in {"R", "C"} else 1
+        end = index + path_count
+        if end > len(records):
+            raise SystemExit(f"truncated git name-status record starting with {status!r}")
+        for record in records[index:end]:
+            paths.append(record.decode("utf-8"))
+        index = end
+    return paths
 
 
 def main() -> None:

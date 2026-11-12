@@ -302,6 +302,50 @@ def test_staged_spec_edit_is_rejected(tmp_path: Path) -> None:
     assert allowed.returncode == 0
 
 
+def test_rename_out_of_spec_is_rejected(tmp_path: Path) -> None:
+    _git(tmp_path, "init", "-b", "main")
+    spec = tmp_path / "spec"
+    spec.mkdir()
+    (spec / "SCIENCE.md").write_text("# Science\n", encoding="utf-8")
+    _git(tmp_path, "add", "spec/SCIENCE.md")
+    _git(tmp_path, "commit", "-m", "chore(tooling): baseline")
+    _git(tmp_path, "mv", "spec/SCIENCE.md", "SCIENCE.md")
+    denied = subprocess.run(
+        [sys.executable, str(SPEC_HOOK)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert denied.returncode == 1
+    assert "spec/SCIENCE.md" in denied.stderr
+    assert "needs-science-decision" in denied.stderr
+
+
+def test_delete_under_spec_and_gold_is_rejected(tmp_path: Path) -> None:
+    _git(tmp_path, "init", "-b", "main")
+    spec = tmp_path / "spec"
+    spec.mkdir()
+    (spec / "SCIENCE.md").write_text("# Science\n", encoding="utf-8")
+    gold = tmp_path / "data" / "gold"
+    gold.mkdir(parents=True)
+    (gold / "values.csv").write_text("name,value\n", encoding="utf-8")
+    _git(tmp_path, "add", "spec/SCIENCE.md", "data/gold/values.csv")
+    _git(tmp_path, "commit", "-m", "chore(tooling): baseline")
+    _git(tmp_path, "rm", "spec/SCIENCE.md", "data/gold/values.csv")
+    denied = subprocess.run(
+        [sys.executable, str(SPEC_HOOK)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert denied.returncode == 1
+    assert "spec/SCIENCE.md" in denied.stderr
+    assert "data/gold/values.csv" in denied.stderr
+    assert "needs-science-decision" in denied.stderr
+
+
 def test_pre_push_refuses_main(tmp_path: Path) -> None:
     _git(tmp_path, "init", "-b", "main")
     (tmp_path / "README.md").write_text("x\n", encoding="utf-8")
@@ -329,3 +373,86 @@ def test_pre_push_refuses_main(tmp_path: Path) -> None:
     )
     assert to_main.returncode == 1
     assert "main" in to_main.stderr
+
+
+def test_pre_commit_managed_pre_push_refuses_main(tmp_path: Path) -> None:
+    """pre-commit leaves stdin empty and sets PRE_COMMIT_REMOTE_BRANCH."""
+
+    _git(tmp_path, "init", "-b", "main")
+    (tmp_path / "README.md").write_text("x\n", encoding="utf-8")
+    _git(tmp_path, "add", "README.md")
+    _git(tmp_path, "commit", "-m", "chore(tooling): baseline")
+    _git(tmp_path, "checkout", "-b", "feature")
+    env = os.environ.copy()
+    env["PRE_COMMIT_REMOTE_BRANCH"] = "refs/heads/main"
+    denied = subprocess.run(
+        [sys.executable, str(PUSH_HOOK)],
+        cwd=tmp_path,
+        input="",
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert denied.returncode == 1
+    assert "refusing push to main" in denied.stderr
+
+
+def test_git_push_head_to_main_is_rejected(tmp_path: Path) -> None:
+    """git push origin HEAD:main goes through pre-commit, which clears stdin."""
+
+    bare = tmp_path / "origin.git"
+    work = tmp_path / "work"
+    work.mkdir()
+    env = os.environ.copy()
+    env.update(_GIT_ENV)
+    subprocess.run(
+        ["git", "init", "--bare", "-b", "main", str(bare)],
+        check=True,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    _git(work, "init", "-b", "feature")
+    hook = f"{sys.executable} {ROOT / 'tools' / 'hooks' / 'pre_push.py'}"
+    (work / ".pre-commit-config.yaml").write_text(
+        "\n".join(
+            [
+                "repos:",
+                "  - repo: local",
+                "    hooks:",
+                "      - id: pre-push-check",
+                "        name: refuse push to main and run make check",
+                f"        entry: {hook}",
+                "        language: system",
+                "        stages: [pre-push]",
+                "        always_run: true",
+                "        pass_filenames: false",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (work / "README.md").write_text("x\n", encoding="utf-8")
+    _git(work, "add", "README.md", ".pre-commit-config.yaml")
+    _git(work, "commit", "-m", "chore(tooling): baseline")
+    _git(work, "remote", "add", "origin", str(bare))
+    installed = subprocess.run(
+        [sys.executable, "-m", "pre_commit", "install", "--hook-type", "pre-push"],
+        cwd=work,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert installed.returncode == 0, installed.stderr
+    pushed = subprocess.run(
+        ["git", "push", "origin", "HEAD:main"],
+        cwd=work,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert pushed.returncode != 0
+    assert "refusing push to main" in pushed.stdout + pushed.stderr
