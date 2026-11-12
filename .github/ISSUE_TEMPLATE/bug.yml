@@ -1,0 +1,26 @@
+name: Bug
+description: Report a defect in the harness, a verifier, or tooling.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: What happened
+      description: Command, exit code, and the output that shows it.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: input
+    id: spec_ref
+    attributes:
+      label: Spec reference
+      description: Exact spec anchor if the bug depends on one. Write "none" for a tooling bug.
+    validations:
+      required: true

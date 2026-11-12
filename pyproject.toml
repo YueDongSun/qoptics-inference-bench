@@ -1,0 +1,47 @@
+[project]
+name = "qoinfer"
+version = "0.0.1"
+description = "Quantum-optics experiment parameter inference benchmark"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "Yuedong Sun" }]
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "mypy==2.4.1",
+  "nbstripout==0.9.1",
+  "pre-commit==4.7.0",
+  "pytest==9.2.0",
+  "ruff==0.17.4",
+]
+
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+testpaths = ["tests"]
+pythonpath = ["tools"]
+markers = [
+  "slow: marks tests as slow; make check runs them",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "N", "PL"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["qoinfer"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["qoinfer"]

@@ -1,0 +1,8 @@
+id = "example_000_smoke"
+family = "example"
+difficulty = "trivial"
+spec_ref = "spec/TASKS.md#task-families"
+timeout_sec = 60
+author = "scaffold"
+status = "draft"
+format_demo = true

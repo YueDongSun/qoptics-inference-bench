@@ -1,0 +1,55 @@
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff-format
+      - id: ruff-check
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.4.1
+    hooks:
+      - id: mypy
+        files: ^src/
+        args: ["--strict", "--config-file=pyproject.toml"]
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+        exclude: ^data/gold/
+      - id: check-added-large-files
+        name: check gold files under 5 MB
+        args: ["--maxkb=5120"]
+        files: ^data/gold/
+      - id: no-commit-to-branch
+        args: ["--branch", "main"]
+  - repo: local
+    hooks:
+      - id: check-spec-untouched
+        name: reject staged spec and data/gold edits
+        entry: python3 tools/check_spec_untouched.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: conventional-commit
+        name: conventional commit with allowed scope
+        entry: python3 tools/hooks/check_commit_msg.py
+        language: system
+        stages: [commit-msg]
+        always_run: true
+        pass_filenames: true
+      - id: pre-push-check
+        name: refuse push to main and run make check
+        entry: python3 tools/hooks/pre_push.py
+        language: system
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
