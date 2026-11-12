@@ -25,7 +25,8 @@ Document matrix basis order. Prefer exact diagonalisation for references.
 Task ids: `<family>_<nnn>_<slug>`. Scaffold with
 `uv run python tools/new_task.py <task_id>`. Verifiers take tolerances from
 `spec/TOLERANCES.md` by name. `make validate` must show the solution passing
-and a do-nothing run failing.
+within `timeout_sec` and a do-nothing run failing a collected test
+(pytest exit code 1).
 
 `make check` is the local source of truth: fmt-check, lint, type, test,
 validate.

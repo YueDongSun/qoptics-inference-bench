@@ -12,18 +12,56 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_vacuous_verifier_fails_validation(tmp_path: Path) -> None:
-    task = tmp_path / "example_002_vacuous"
+    task = _write_task(
+        tmp_path / "example_002_vacuous",
+        solve="#!/bin/sh\nexit 0\n",
+        test="def test_always() -> None:\n    assert True\n",
+        timeout_sec=30,
+    )
+    with pytest.raises(TaskRunError, match="empty solution did not fail"):
+        validate_one(task, ROOT)
+
+
+def test_collection_error_is_not_an_empty_solution_failure(tmp_path: Path) -> None:
+    task = _write_task(
+        tmp_path / "example_003_collect",
+        solve="#!/bin/sh\nmkdir -p artifacts\nprintf '%s\\n' '{}' > artifacts/result.json\n",
+        test=(
+            "from pathlib import Path\n"
+            "Path('artifacts/result.json').read_text(encoding='utf-8')\n"
+            "\n"
+            "def test_always() -> None:\n"
+            "    assert True\n"
+        ),
+        timeout_sec=30,
+    )
+    with pytest.raises(TaskRunError, match="not a test failure"):
+        validate_one(task, ROOT)
+
+
+def test_solution_timeout_fails_validation(tmp_path: Path) -> None:
+    task = _write_task(
+        tmp_path / "example_004_slow",
+        solve="#!/bin/sh\nexec python -c 'import time; time.sleep(30)'\n",
+        test="def test_always() -> None:\n    assert True\n",
+        timeout_sec=1,
+    )
+    with pytest.raises(TaskRunError, match="timed out after 1s"):
+        validate_one(task, ROOT)
+
+
+def _write_task(task: Path, *, solve: str, test: str, timeout_sec: int) -> Path:
     (task / "environment").mkdir(parents=True)
     (task / "solution").mkdir()
     (task / "tests").mkdir()
     (task / "task.toml").write_text(
         "\n".join(
             [
-                'id = "example_002_vacuous"',
+                f'id = "{task.name}"',
                 'family = "example"',
                 'difficulty = "trivial"',
                 'spec_ref = "spec/TASKS.md#task-families"',
-                "timeout_sec = 30",
+                f"timeout_sec = {timeout_sec}",
                 'author = "scaffold"',
                 'status = "draft"',
                 "",
@@ -36,10 +74,6 @@ def test_vacuous_verifier_fails_validation(tmp_path: Path) -> None:
         "FROM python:3.12.3-slim-bookworm\n",
         encoding="utf-8",
     )
-    (task / "solution" / "solve.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    (task / "tests" / "test_outputs.py").write_text(
-        "def test_always() -> None:\n    assert True\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(TaskRunError, match="empty solution"):
-        validate_one(task, ROOT)
+    (task / "solution" / "solve.sh").write_text(solve, encoding="utf-8")
+    (task / "tests" / "test_outputs.py").write_text(test, encoding="utf-8")
+    return task

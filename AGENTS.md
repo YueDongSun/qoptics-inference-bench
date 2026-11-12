@@ -31,7 +31,8 @@ layout needs a new ADR in the same pull request.
   `solution/solve.sh`, `tests/test_outputs.py`.
 - Task ids are `<family>_<nnn>_<slug>` in snake_case.
   `tools/new_task.py <task_id>` scaffolds one. `make validate` checks
-  structure, that the solution passes, and that a do-nothing run fails.
+  structure, that the solution passes within `timeout_sec`, and that a
+  do-nothing run fails a collected test (pytest exit code 1).
 - `example_000_smoke` is a format demo. It is not science.
 
 ## Owner workflow standard

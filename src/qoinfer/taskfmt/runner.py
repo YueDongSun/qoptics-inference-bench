@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -15,6 +16,7 @@ from pathlib import Path
 from qoinfer.taskfmt.validate import TaskFormatError, validate_task_dir
 
 _PYTEST_OK = 0
+_PYTEST_FAILED = 1
 _PYTEST_NO_TESTS = 5
 
 
@@ -60,17 +62,33 @@ def validate_one(task_dir: Path, root: Path) -> None:
     except TaskFormatError as exc:
         raise TaskRunError(str(exc)) from exc
     print(f"{manifest.task_id}: structure ok")
-    solution = _run_pytest(task_dir, root, run_solution=True)
+    solution = _run_pytest(
+        task_dir,
+        root,
+        run_solution=True,
+        timeout_sec=manifest.timeout_sec,
+    )
     if solution.returncode != _PYTEST_OK:
         raise TaskRunError(
             f"{manifest.task_id}: solution failed\n{solution.stdout}\n{solution.stderr}"
         )
     print(f"{manifest.task_id}: solution passed")
-    empty = _run_pytest(task_dir, root, run_solution=False)
-    if empty.returncode in {_PYTEST_OK, _PYTEST_NO_TESTS}:
+    empty = _run_pytest(
+        task_dir,
+        root,
+        run_solution=False,
+        timeout_sec=manifest.timeout_sec,
+    )
+    if empty.returncode != _PYTEST_FAILED:
+        detail = f"{empty.stdout}\n{empty.stderr}"
+        if empty.returncode in {_PYTEST_OK, _PYTEST_NO_TESTS}:
+            raise TaskRunError(
+                f"{manifest.task_id}: empty solution did not fail the verifier\n{detail}"
+            )
         raise TaskRunError(
-            f"{manifest.task_id}: empty solution did not fail the verifier\n"
-            f"{empty.stdout}\n{empty.stderr}"
+            f"{manifest.task_id}: empty solution exited {empty.returncode}, "
+            "which is not a test failure. The verifier must fail a collected "
+            f"test when the solution does not run.\n{detail}"
         )
     print(f"{manifest.task_id}: empty solution failed as required")
 
@@ -78,9 +96,14 @@ def validate_one(task_dir: Path, root: Path) -> None:
 def run_empty_only(task_dir: Path, root: Path) -> int:
     """Run the verifier with no solution and return the pytest exit code."""
 
-    validate_task_dir(task_dir)
+    manifest = validate_task_dir(task_dir)
     print(f"{task_dir.name}: running verifier with no solution", file=sys.stderr)
-    completed = _run_pytest(task_dir, root, run_solution=False)
+    completed = _run_pytest(
+        task_dir,
+        root,
+        run_solution=False,
+        timeout_sec=manifest.timeout_sec,
+    )
     sys.stdout.write(completed.stdout)
     sys.stderr.write(completed.stderr)
     return completed.returncode
@@ -91,6 +114,7 @@ def _run_pytest(
     root: Path,
     *,
     run_solution: bool,
+    timeout_sec: int,
 ) -> subprocess.CompletedProcess[str]:
     with tempfile.TemporaryDirectory(prefix="qoinfer-task-") as tmp:
         work = Path(tmp) / "work"
@@ -98,21 +122,54 @@ def _run_pytest(
         env = os.environ.copy()
         env["QOINFER_REPO_ROOT"] = str(root)
         if run_solution:
-            solved = subprocess.run(
+            solved = _run_bounded(
                 ["bash", "solution/solve.sh"],
                 cwd=work,
-                capture_output=True,
-                text=True,
                 env=env,
-                check=False,
+                timeout_sec=timeout_sec,
+                label=f"{task_dir.name} solution",
             )
             if solved.returncode != _PYTEST_OK:
                 return solved
-        return subprocess.run(
+        return _run_bounded(
             [sys.executable, "-m", "pytest", "tests/test_outputs.py", "-q", "--strict-markers"],
             cwd=work,
-            capture_output=True,
-            text=True,
             env=env,
-            check=False,
+            timeout_sec=timeout_sec,
+            label=f"{task_dir.name} verifier",
         )
+
+
+def _run_bounded(
+    args: list[str],
+    *,
+    cwd: Path,
+    env: dict[str, str],
+    timeout_sec: int,
+    label: str,
+) -> subprocess.CompletedProcess[str]:
+    """Run ``args`` and kill the process group when ``timeout_sec`` elapses.
+
+    ``timeout_sec`` is the engineering limit from ``task.toml``, in seconds.
+    See ``docs/adr/0002-task-format.md``.
+    """
+
+    proc = subprocess.Popen(
+        args,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout_sec)
+    except subprocess.TimeoutExpired as exc:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.communicate()
+        raise TaskRunError(f"{label} timed out after {timeout_sec}s") from exc
+    code = proc.returncode
+    if code is None:
+        raise TaskRunError(f"{label} exited without a status")
+    return subprocess.CompletedProcess(args, code, stdout, stderr)

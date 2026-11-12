@@ -37,8 +37,11 @@ contain underscores; the three-digit field is the `_nnn_` segment.
 `make validate` (`tools/run_task_locally.py`) checks structure, runs the
 solution, and requires the verifier to fail when the solution is not run.
 The runner sets `QOINFER_REPO_ROOT` so a copied work directory can still open
-`spec/`. A pytest exit code of 0 or 5 (no tests collected) on the empty run is
-a vacuous verifier and fails validation.
+`spec/`. `timeout_sec` from `task.toml` is applied separately to the solution
+and to pytest; exceeding it kills that process group and fails the task.
+The empty run counts only when pytest exit code is 1 (collected tests
+failed). Exit code 0 or 5 is a vacuous verifier. Any other status, including
+a collection error, is a broken verifier and fails validation.
 
 `example_000_smoke` is a format demo, marked `format_demo = true` and stated
 as such in `instruction.md`. It is not science. The instruction assigns the

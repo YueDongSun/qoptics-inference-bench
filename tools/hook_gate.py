@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -50,8 +51,8 @@ _ATTRIBUTION = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 _MADE_WITH = re.compile(r"^made with\b", re.IGNORECASE | re.MULTILINE)
-_QUOTED = re.compile(r"""('([^'\\]|\\.)*'|"([^"\\]|\\.)*")""")
 _SHARED_BRANCH = "main"
+_GIT_OPTIONS_WITH_VALUE = {"-C", "-c"}
 
 
 def repo_root() -> Path:
@@ -154,45 +155,94 @@ def _segments(command: str) -> list[str]:
 
 
 def _segment_denial(segment: str, current_branch: str | None) -> str | None:
-    bare = _QUOTED.sub(" ", segment)
-    if _is_force_push(bare):
-        return "refusing git push --force. Force-push is denied."
-    if _is_push_to_main(bare):
-        return "refusing git push to main. Open a pull request; do not push main."
-    if _is_no_verify_commit(bare):
-        return "refusing git commit --no-verify. Hooks are part of the contract."
-    if _is_reset_hard(bare):
-        return _reset_hard_denial(current_branch)
-    if _is_pip_install(bare):
-        return "refusing pip install. Add dependencies with uv add."
+    try:
+        tokens = shlex.split(segment, posix=True)
+    except ValueError:
+        return f"refusing unparseable shell command: {segment}"
+    reasons = (
+        "refusing git push --force. Force-push is denied." if _is_force_push(tokens) else None,
+        "refusing git push to main. Open a pull request; do not push main."
+        if _is_push_to_main(tokens)
+        else None,
+        "refusing git commit --no-verify. Hooks are part of the contract."
+        if _is_no_verify_commit(tokens)
+        else None,
+        _reset_hard_denial(current_branch) if _is_reset_hard(tokens) else None,
+        "refusing pip install. Add dependencies with uv add." if _is_pip_install(tokens) else None,
+    )
+    for reason in reasons:
+        if reason is not None:
+            return reason
     return None
 
 
-def _is_force_push(segment: str) -> bool:
-    if re.search(r"\bgit\s+push\b", segment) is None:
+def _git_args(tokens: list[str], subcommand: str) -> list[str] | None:
+    """Return arguments after ``git <subcommand>``, skipping global git options."""
+
+    idx = 0
+    while idx < len(tokens) and _is_assignment(tokens[idx]):
+        idx += 1
+    if idx < len(tokens) and tokens[idx] == "command":
+        idx += 1
+    if idx >= len(tokens) or Path(tokens[idx]).name not in {"git", "git.exe"}:
+        return None
+    idx += 1
+    while idx < len(tokens) and tokens[idx] != subcommand:
+        tok = tokens[idx]
+        if tok in _GIT_OPTIONS_WITH_VALUE:
+            idx += 2
+            continue
+        if tok.startswith("-"):
+            idx += 1
+            continue
+        return None
+    if idx >= len(tokens):
+        return None
+    return tokens[idx + 1 :]
+
+
+def _is_assignment(token: str) -> bool:
+    name, sep, _value = token.partition("=")
+    return sep == "=" and name != "" and not name.startswith("-")
+
+
+def _is_force_push(tokens: list[str]) -> bool:
+    args = _git_args(tokens, "push")
+    if args is None:
         return False
-    if re.search(r"--force\b", segment):
-        return True
-    return re.search(r"(?:^|\s)-f(?:\s|$)", segment) is not None
+    return any(tok == "-f" or tok.startswith("--force") for tok in args)
 
 
-def _is_push_to_main(segment: str) -> bool:
-    if re.search(r"\bgit\s+push\b", segment) is None:
+def _is_push_to_main(tokens: list[str]) -> bool:
+    args = _git_args(tokens, "push")
+    if args is None:
         return False
-    destination = r"(?:^|\s)(?:[\w./+-]+:)?(?:refs/heads/)?main(?:\s|$)"
-    return re.search(destination, segment) is not None
+    for tok in args:
+        if tok.startswith("-"):
+            continue
+        destination = tok.split(":")[-1]
+        if destination in {"main", "refs/heads/main"}:
+            return True
+    return False
 
 
-def _is_no_verify_commit(segment: str) -> bool:
-    if re.search(r"\bgit\s+commit\b", segment) is None:
+def _is_no_verify_commit(tokens: list[str]) -> bool:
+    args = _git_args(tokens, "commit")
+    if args is None:
         return False
-    if "--no-verify" in segment:
-        return True
-    return re.search(r"(?:^|\s)-n(?:\s|$)", segment) is not None
+    for tok in args:
+        if tok == "--no-verify" or tok.startswith("--no-verify="):
+            return True
+        if tok.startswith("-") and not tok.startswith("--") and "n" in tok[1:]:
+            return True
+    return False
 
 
-def _is_reset_hard(segment: str) -> bool:
-    return re.search(r"\bgit\s+reset\b", segment) is not None and "--hard" in segment.split()
+def _is_reset_hard(tokens: list[str]) -> bool:
+    args = _git_args(tokens, "reset")
+    if args is None:
+        return False
+    return "--hard" in args
 
 
 def _reset_hard_denial(current_branch: str | None) -> str | None:
@@ -206,7 +256,12 @@ def _reset_hard_denial(current_branch: str | None) -> str | None:
     return None
 
 
-def _is_pip_install(segment: str) -> bool:
-    if re.search(r"\bpip3?\s+install\b", segment):
-        return True
-    return re.search(r"\bpython(?:3(?:\.\d+)?)?\s+-m\s+pip\s+install\b", segment) is not None
+def _is_pip_install(tokens: list[str]) -> bool:
+    for idx, tok in enumerate(tokens):
+        if tok in {"pip", "pip3"} and idx + 1 < len(tokens) and tokens[idx + 1] == "install":
+            return True
+        if tok in {"python", "python3"} or tok.startswith("python3."):
+            window = tokens[idx : idx + 4]
+            if window[1:] == ["-m", "pip", "install"]:
+                return True
+    return False
