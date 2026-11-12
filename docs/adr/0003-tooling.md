@@ -29,6 +29,8 @@ Code hooks must agree, and agents must not edit `spec/` or `data/gold/`.
   Conventional Commits with scope
   `task|verify|reference|taskfmt|tooling|docs|ci|deps|spec`,
   and a pre-push hook that refuses `main` and runs `make check`.
+  When `core.hooksPath` is set, as Cursor does, the installer writes those
+  files under `.git/hooks` and does not change git config.
 - `tools/check_spec_untouched.py` rejects a staged path under `spec/` or
   `data/gold/` unless `OWNER_SPEC_EDIT=1`. Agents must never set that
   variable. The initial skeleton is the baseline this milestone commits

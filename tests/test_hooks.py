@@ -16,6 +16,7 @@ from hook_gate import (
     pushes_main,
     shell_denial,
 )
+from install_git_hooks import env_without_hooks_path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN = ROOT / "tools" / "hooks" / "run.py"
@@ -30,6 +31,14 @@ _GIT_ENV = {
     "GIT_COMMITTER_NAME": "hook-test",
     "GIT_COMMITTER_EMAIL": "hook-test@example.com",
 }
+
+
+def test_env_without_hooks_path_appends_an_empty_override() -> None:
+    env = env_without_hooks_path({"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.quotePath"})
+    assert env["GIT_CONFIG_COUNT"] == "2"
+    assert env["GIT_CONFIG_KEY_1"] == "core.hooksPath"
+    assert env["GIT_CONFIG_VALUE_1"] == ""
+    assert env["GIT_CONFIG_KEY_0"] == "core.quotePath"
 
 
 def test_owner_only_paths() -> None:

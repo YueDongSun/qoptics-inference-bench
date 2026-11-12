@@ -82,7 +82,9 @@ layout needs a new ADR in the same pull request.
 
 Three layers, same rules:
 
-- Git, via `pre-commit` after `make setup`: format, lint, mypy, nbstripout,
+- Git, via `pre-commit` after `make setup` (hook files land in `.git/hooks`
+  even when `core.hooksPath` is set; git config is not changed): format,
+  lint, mypy, nbstripout,
   YAML/TOML, whitespace, end-of-file, file size (500 kB; `data/gold/` up to
   5 MB), reject staged `spec/` and `data/gold/` edits, no commits on `main`,
   Conventional Commits with scope

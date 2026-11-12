@@ -2,7 +2,7 @@
 
 setup:
 	uv sync --all-groups
-	uv run pre-commit install --install-hooks --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
+	uv run python tools/install_git_hooks.py
 
 fmt:
 	uv run ruff format .

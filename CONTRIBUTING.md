@@ -11,8 +11,9 @@ make check
 ```
 
 `make setup` creates the uv environment and installs the pre-commit,
-commit-msg, and pre-push hooks. Do not use `pip install`. Add a dependency
-with `uv add` and commit `uv.lock`.
+commit-msg, and pre-push hooks. If `core.hooksPath` is set, the hook files
+are still written under `.git/hooks` and git config is left unchanged. Do not
+use `pip install`. Add a dependency with `uv add` and commit `uv.lock`.
 
 ## Commits
 
