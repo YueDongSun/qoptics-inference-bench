@@ -1,0 +1,34 @@
+---
+description: Agent contract for qoptics-inference-bench
+alwaysApply: true
+---
+
+# Agent contract
+
+Repository: qoptics-inference-bench. Package: `qoinfer`. Owner: Yuedong Sun
+(`@YueDongSun`) writes the science. Agents write engineering that traces to
+`spec/` or an ADR in `docs/adr/`.
+
+Read `AGENTS.md` before editing. `CLAUDE.md` points at the same file.
+
+`example_000_smoke` is a format demo, not science. Do not invent physics,
+units, tolerances, conventions, or literature values. If `spec/` does not
+state a fact, open a GitHub issue labelled `needs-science-decision`, quote
+the exact line, list the options, and stop that piece of work.
+
+Comments, docs, ADRs, and instructions are English. snake_case for
+project-owned paths and identifiers. Keep required external names
+(`AGENTS.md`, `README.md`, `Dockerfile`, `pyproject.toml`, `task.toml`,
+`.pre-commit-config.yaml`, `.cursor/`, `.claude/`, GitHub template names).
+
+No attribution trailers on ordinary commits. One agent owns one issue,
+branch, and worktree. Do not touch another agent's branch. Do not
+force-remove worktrees or branches.
+
+Preparation, installation, registration, a successful call, and end-to-end
+acceptance are separate states. A pull request names the state of each claim
+and pastes the command output for anything it calls verified.
+
+Never commit credentials, host inventories, chat histories, tokens, or
+token-bearing URLs. Repository visibility is the owner's decision.
+Update README and affected docs only with behaviour verified in that PR.

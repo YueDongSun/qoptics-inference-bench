@@ -1,0 +1,32 @@
+---
+description: Python and task-format standards
+alwaysApply: true
+---
+
+# Code standards
+
+Python 3.12, `uv`, committed `uv.lock`, exact direct versions. Do not
+`pip install`. Use `uv add`.
+
+`ruff` rules: E, F, W, I, B, UP, SIM, RUF, N, PL. Line length 100.
+`mypy --strict` on `src/`. `pytest --strict-markers`. Deterministic tests
+with an explicit seed. `@pytest.mark.slow` still runs under `make check`.
+
+Type hints everywhere in `src/`. Docstrings name units and point at the spec
+section.
+
+No broad `try/except`, silent fallback, or speculative helper. No checksum
+or sha256 manifest. No notebooks in `src/` or `tasks/`. No live or paid LLM
+call in the tests.
+
+Numerical code uses numpy and scipy only once a spec section requires it.
+Document matrix basis order. Prefer exact diagonalisation for references.
+
+Task ids: `<family>_<nnn>_<slug>`. Scaffold with
+`uv run python tools/new_task.py <task_id>`. Verifiers take tolerances from
+`spec/TOLERANCES.md` by name. `make validate` must show the solution passing
+within `timeout_sec` and a do-nothing run failing a collected test
+(pytest exit code 1).
+
+`make check` is the local source of truth: fmt-check, lint, type, test,
+validate.

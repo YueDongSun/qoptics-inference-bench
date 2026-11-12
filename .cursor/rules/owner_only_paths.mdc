@@ -1,0 +1,18 @@
+---
+description: spec and gold data are owner-only
+alwaysApply: true
+---
+
+# Owner-only paths
+
+Never edit `spec/` or `data/gold/`. Never set `OWNER_SPEC_EDIT`. Never commit
+with `--no-verify`.
+
+Reads of `spec/` are required so an issue can quote the exact line.
+
+A missing or ambiguous spec point stops the work that depends on it. Open an
+issue labelled `needs-science-decision` with the quoted line and the concrete
+options. Do not guess.
+
+The M0 skeleton (headings and `TODO(owner)` only) is the baseline. It is not
+permission to fill in science.

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "python3 tools/hooks/run.py cursor-before-shell",
+        "failClosed": true
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "python3 tools/hooks/run.py cursor-before-read",
+        "failClosed": true
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "python3 tools/hooks/run.py cursor-pre-tool",
+        "matcher": "Write|Edit|StrReplace|Delete|MultiEdit",
+        "failClosed": true
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "python3 tools/hooks/run.py cursor-after-edit"
+      }
+    ],
+    "stop": [
+      {
+        "command": "python3 tools/hooks/run.py cursor-stop",
+        "timeout": 600
+      }
+    ]
+  }
+}

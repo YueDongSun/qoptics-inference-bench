@@ -1,0 +1,27 @@
+name: Science decision
+description: Ask the owner to resolve a missing or ambiguous spec point.
+title: "science: "
+labels:
+  - needs-science-decision
+body:
+  - type: textarea
+    id: spec_line
+    attributes:
+      label: Spec line
+      description: Quote the exact spec line. Do not paraphrase a tolerance or convention into existence.
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options
+      description: List the concrete options. Do not pick one.
+    validations:
+      required: true
+  - type: textarea
+    id: blocked
+    attributes:
+      label: Work stopped
+      description: What engineering work is stopped until the owner decides.
+    validations:
+      required: true

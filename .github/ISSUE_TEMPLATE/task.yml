@@ -1,0 +1,28 @@
+name: Task
+description: Engineering work to add or change one task.
+title: "task: "
+labels:
+  - task
+body:
+  - type: input
+    id: task_id
+    attributes:
+      label: Task id
+      description: "<family>_<nnn>_<slug>"
+      placeholder: example_000_smoke
+    validations:
+      required: true
+  - type: input
+    id: spec_ref
+    attributes:
+      label: Spec reference
+      description: Exact spec path and anchor, for example spec/TASKS.md#task-families.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: File scope
+      description: Files this issue may change. spec/ and data/gold/ are out of scope.
+    validations:
+      required: true

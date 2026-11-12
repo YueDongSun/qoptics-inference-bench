@@ -1,0 +1,28 @@
+---
+description: Branch, commit, and review workflow
+alwaysApply: true
+---
+
+# Workflow
+
+`main` is protected. Agents never merge and never force-push.
+
+One issue, one branch, one pull request. Branch:
+`<agent>/<issue_number>_<slug>`. Comment `claim` and add `in-progress`
+before editing. Stay inside the issue's files.
+
+Commit messages are Conventional Commits with a scope from `task`, `verify`,
+`reference`, `taskfmt`, `tooling`, `docs`, `ci`, `deps`, `spec`.
+Example: `feat(task): add example_000_smoke`. No attribution trailers.
+
+Pull requests include: issue link, spec reference (`spec/...#anchor`),
+contract changes (`none` or a list plus an ADR), `make check` output, what
+is not verified, and open science questions. Aim under 400 changed lines
+excluding `data/` and lockfiles; a larger diff needs a reason.
+
+Rebase on `main` before review. Squash merge is the owner's action.
+A task-format, public-API, or layout change adds `docs/adr/NNNN-*.md`.
+Update `PROGRESS.md` when status changes.
+
+Hooks in `.cursor/hooks.json` and `.claude/settings.json` are part of the
+contract. Do not weaken them to finish a task.
