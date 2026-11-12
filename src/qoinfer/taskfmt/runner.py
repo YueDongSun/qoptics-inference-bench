@@ -51,10 +51,10 @@ def validate_all(root: Path) -> None:
     if not task_dirs:
         raise TaskRunError(f"no tasks under {root / 'tasks'}")
     for task_dir in task_dirs:
-        validate_one(task_dir, root)
+        validate_one(task_dir)
 
 
-def validate_one(task_dir: Path, root: Path) -> None:
+def validate_one(task_dir: Path) -> None:
     """Check structure, a passing solution, and a failing do-nothing run."""
 
     try:
@@ -64,7 +64,6 @@ def validate_one(task_dir: Path, root: Path) -> None:
     print(f"{manifest.task_id}: structure ok")
     solution = _run_pytest(
         task_dir,
-        root,
         run_solution=True,
         timeout_sec=manifest.timeout_sec,
     )
@@ -75,7 +74,6 @@ def validate_one(task_dir: Path, root: Path) -> None:
     print(f"{manifest.task_id}: solution passed")
     empty = _run_pytest(
         task_dir,
-        root,
         run_solution=False,
         timeout_sec=manifest.timeout_sec,
     )
@@ -93,14 +91,13 @@ def validate_one(task_dir: Path, root: Path) -> None:
     print(f"{manifest.task_id}: empty solution failed as required")
 
 
-def run_empty_only(task_dir: Path, root: Path) -> int:
+def run_empty_only(task_dir: Path) -> int:
     """Run the verifier with no solution and return the pytest exit code."""
 
     manifest = validate_task_dir(task_dir)
     print(f"{task_dir.name}: running verifier with no solution", file=sys.stderr)
     completed = _run_pytest(
         task_dir,
-        root,
         run_solution=False,
         timeout_sec=manifest.timeout_sec,
     )
@@ -111,7 +108,6 @@ def run_empty_only(task_dir: Path, root: Path) -> int:
 
 def _run_pytest(
     task_dir: Path,
-    root: Path,
     *,
     run_solution: bool,
     timeout_sec: int,
@@ -120,7 +116,6 @@ def _run_pytest(
         work = Path(tmp) / "work"
         shutil.copytree(task_dir, work)
         env = os.environ.copy()
-        env["QOINFER_REPO_ROOT"] = str(root)
         if run_solution:
             solved = _run_bounded(
                 ["bash", "solution/solve.sh"],

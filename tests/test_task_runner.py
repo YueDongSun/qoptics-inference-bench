@@ -8,8 +8,6 @@ import pytest
 
 from qoinfer.taskfmt.runner import TaskRunError, validate_one
 
-ROOT = Path(__file__).resolve().parents[1]
-
 
 def test_vacuous_verifier_fails_validation(tmp_path: Path) -> None:
     task = _write_task(
@@ -19,7 +17,7 @@ def test_vacuous_verifier_fails_validation(tmp_path: Path) -> None:
         timeout_sec=30,
     )
     with pytest.raises(TaskRunError, match="empty solution did not fail"):
-        validate_one(task, ROOT)
+        validate_one(task)
 
 
 def test_collection_error_is_not_an_empty_solution_failure(tmp_path: Path) -> None:
@@ -36,7 +34,7 @@ def test_collection_error_is_not_an_empty_solution_failure(tmp_path: Path) -> No
         timeout_sec=30,
     )
     with pytest.raises(TaskRunError, match="not a test failure"):
-        validate_one(task, ROOT)
+        validate_one(task)
 
 
 def test_solution_timeout_fails_validation(tmp_path: Path) -> None:
@@ -47,7 +45,7 @@ def test_solution_timeout_fails_validation(tmp_path: Path) -> None:
         timeout_sec=1,
     )
     with pytest.raises(TaskRunError, match="timed out after 1s"):
-        validate_one(task, ROOT)
+        validate_one(task)
 
 
 def _write_task(task: Path, *, solve: str, test: str, timeout_sec: int) -> Path:

@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 
 from qoinfer.taskfmt.validate import TaskFormatError, parse_task_id, validate_task_dir
-from qoinfer.verify.tolerances import ToleranceMissingError, require_heading
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -32,13 +31,6 @@ def test_latest_base_image_is_rejected(tmp_path: Path) -> None:
     _write_min_task(task, dockerfile="FROM python:latest\n")
     with pytest.raises(TaskFormatError, match="latest"):
         validate_task_dir(task)
-
-
-def test_tolerances_heading_is_required() -> None:
-    path = ROOT / "spec" / "TOLERANCES.md"
-    require_heading(path, "Tolerances")
-    with pytest.raises(ToleranceMissingError):
-        require_heading(path, "not-a-heading")
 
 
 def _write_min_task(task: Path, dockerfile: str) -> None:

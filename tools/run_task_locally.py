@@ -39,8 +39,8 @@ def main(argv: list[str] | None = None) -> None:
             raise SystemExit("pass --all or --task <task_id>")
         task_dir = root / "tasks" / args.task
         if args.empty_only:
-            raise SystemExit(run_empty_only(task_dir, root))
-        validate_one(task_dir, root)
+            raise SystemExit(run_empty_only(task_dir))
+        validate_one(task_dir)
     except TaskRunError as exc:
         print(str(exc), file=sys.stderr)
         raise SystemExit(1) from exc
